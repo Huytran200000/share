@@ -1,0 +1,116 @@
+from playwright.sync_api import sync_playwright
+import pandas as pd
+
+FORM_URL = "https://forms.office.com/Pages/ResponsePage.aspx?id=DQSIkWdsW0yxEjajBLZtrQAAAAAAAAAAAAO__VyATD1UREtaSE4yNVFGUVNaMzRCSTNZN0VNNEtRVC4u"
+
+# đọc file xlsb
+df = pd.read_excel(
+    "nhân viên.xlsb",
+    engine="pyxlsb"
+)
+
+# đổi chữ đáp án sang số tùy chọn
+answer_map = {
+    "a": 1,
+    "b": 2,
+    "c": 3,
+    "d": 4
+}
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=False)
+    context = browser.new_context()
+
+    for index, row in df.iterrows():
+
+        try:
+            page = context.new_page()
+
+            page.goto(FORM_URL)
+
+            # ===== PHẦN 1 =====
+            page.get_by_role(
+                "textbox",
+                name="họ và tên"
+            ).fill(str(row.iloc[0]))
+
+            page.get_by_role(
+                "textbox",
+                name="mã nhân viên"
+            ).fill(str(row.iloc[1]))
+
+            # chọn bộ phận
+            bo_phan = int(row.iloc[2])
+
+            page.get_by_role(
+                "radio",
+                name=f"Tùy chọn {bo_phan}"
+            ).check()
+
+            page.get_by_role(
+                "button",
+                name="Tiếp theo"
+            ).click()
+
+            # ===== ĐÁP ÁN =====
+            answers = str(row.iloc[3]).lower().split(",")
+
+            labels = [
+                "4.Câu hỏi 1Một lựa chọn.",
+                "5.Câu hỏi 2Một lựa chọn.",
+                "6.Câu hỏi 3Một lựa chọn.",
+                "7.Câu hỏi 4Một lựa chọn.",
+                "8.Câu hỏi 5Một lựa chọn.",
+
+                "9.Câu hỏi 1Một lựa chọn.",
+                "10.Câu hỏi 2Một lựa chọn.",
+                "11.Câu hỏi 3Một lựa chọn.",
+                "12.Câu hỏi 4Một lựa chọn.",
+                "13.Câu hỏi 5Một lựa chọn.",
+                "14.Câu hỏi 6Một lựa chọn.",
+
+                "15.Câu hỏi 1Một lựa chọn.",
+                "16.Câu hỏi 2Một lựa chọn.",
+                "17.Câu hỏi 3Một lựa chọn.",
+                "18.Câu hỏi 4Một lựa chọn.",
+                "19.Câu hỏi 5Một lựa chọn."
+            ]
+
+            for i, ans in enumerate(answers):
+
+                option_number = answer_map[ans]
+
+                page.get_by_label(
+                    labels[i]
+                ).get_by_role(
+                    "radio",
+                    name=f"Tùy chọn {option_number}"
+                ).check()
+
+                # qua phần
+                if i == 4:
+                    page.get_by_role(
+                        "button",
+                        name="Tiếp theo"
+                    ).click()
+
+                if i == 10:
+                    page.get_by_role(
+                        "button",
+                        name="Tiếp theo"
+                    ).click()
+
+            # gửi
+            page.get_by_role(
+                "button",
+                name="Gửi"
+            ).click()
+
+            print(f"OK dòng {index+1}")
+
+            page.close()
+
+        except Exception as e:
+            print(f"Lỗi dòng {index+1}: {e}")
+
+    browser.close()
